@@ -187,13 +187,13 @@ Chain.run(10)
 <!-- livebook:{"output":true} -->
 
 ```
-{1774, "Result is 10"}
+{0, "Result is 10"}
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{1774, "Result is 10"}
+{0, "Result is 10"}
 ```
 
 ```elixir
@@ -203,13 +203,13 @@ Chain.run(100)
 <!-- livebook:{"output":true} -->
 
 ```
-{321, "Result is 100"}
+{307, "Result is 100"}
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{321, "Result is 100"}
+{307, "Result is 100"}
 ```
 
 ```elixir
@@ -219,13 +219,13 @@ Chain.run(1000)
 <!-- livebook:{"output":true} -->
 
 ```
-{3748, "Result is 1000"}
+{6553, "Result is 1000"}
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{3748, "Result is 1000"}
+{6553, "Result is 1000"}
 ```
 
 ```elixir
@@ -235,13 +235,13 @@ Chain.run(10000)
 <!-- livebook:{"output":true} -->
 
 ```
-{45222, "Result is 10000"}
+{62361, "Result is 10000"}
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{45222, "Result is 10000"}
+{62361, "Result is 10000"}
 ```
 
 ```elixir
@@ -251,44 +251,31 @@ Chain.run(40000)
 <!-- livebook:{"output":true} -->
 
 ```
-{191698, "Result is 40000"}
+{228044, "Result is 40000"}
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{191698, "Result is 40000"}
+{228044, "Result is 40000"}
 ```
 
 ```elixir
 # 线程数超阈值报警
-Chain.run(400_000)
+# Chain.run(4000000)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+nil
 ```
 
 ### When Processes Die
 
 ```elixir
-:init.stop()
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-
-07:57:23.919 [error] Too many processes
-
-
-
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-:ok
-```
-
-```elixir
 defmodule Link1 do
+  # 使用 erlang 的系统库
   import :timer, only: [sleep: 1]
 
   def sad_function do
@@ -309,4 +296,237 @@ defmodule Link1 do
 end
 
 Link1.run()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Nothing happend
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+```elixir
+defmodule Link2 do
+  import :timer, only: [sleep: 1]
+
+  def sad_func do
+    sleep(500)
+    exit(:boom)
+  end
+
+  def run do
+    spawn_link(Link2, :sad_func, [])
+
+    receive do
+      msg -> IO.puts("MESSAGE RECEIVED: #{inspect(msg)}")
+    after
+      1000 ->
+        IO.puts("Nothing happend")
+    end
+  end
+end
+
+# Link2.run()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Link2, <<70, 79, 82, 49, 0, 0, 8, ...>>, {:run, 0}}
+```
+
+上面的例子在 **Livebook** 中会报错: *Evaluation process terminated - :boom*
+
+```elixir
+defmodule Link3 do
+  import :timer, only: [sleep: 1]
+
+  def sad_func do
+    sleep(500)
+    exit(:boom)
+  end
+
+  def run do
+    # C  onvert the exit signals from a linked process 
+    # into a message you can handle
+    Process.flag(:trap_exit, true)
+    spawn_link(Link3, :sad_func, [])
+
+    receive do
+      msg ->
+        IO.puts("MESSAGE RECEIVED: #{inspect(msg)}")
+    after
+      1000 ->
+        IO.puts("Nothing happend")
+    end
+  end
+end
+
+Link3.run()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+MESSAGE RECEIVED: {:EXIT, #PID<0.4187.3>, :boom}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Monitoring a Process
+
+_Link_ 将两个线程连接起来，调用方和被调用方之间可以互相通信。与之相反，如果一个线程监控另外一个线程，那么只有当被调用方出错异常退出的时候才会通知调用方，消息内容是 `:DOWN`。
+
+<!-- livebook:{"break_markdown":true} -->
+
+`Process.monitor` 和 `spawn_monitor` 都有监控的功能，但是前者不是原子性的，后者是原子性的。
+
+```elixir
+defmodule Monitor1 do
+  import :timer, only: [sleep: 1]
+
+  def sad_func do
+    sleep(500)
+    exit(:boom)
+  end
+
+  def run do
+    spawn_monitor(Monitor1, :sad_func, [])
+
+    receive do
+      msg ->
+        IO.puts("MESSAGE RECEIVED: #{inspect(msg)}")
+    after
+      1000 ->
+        IO.puts("Nothing happend")
+    end
+  end
+end
+
+Monitor1.run()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+MESSAGE RECEIVED: {:DOWN, #Reference<0.610076405.1359216643.194172>, :process, #PID<0.4303.3>, :boom}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+那么什么时候使用 _link_ 什么时候使用 _monitor_ 呢？
+
+这主要取决于线程的语义。如果一个线程失败了需要停止另外一个线程，这个时候需要 _link_ 。反之，如果需要知道某些线程失败的原因，使用 _monitor_ 。
+
+## Parallel Map —— The "Hello, World" of Erlang
+
+有趣的事情：一个并行的 `map` 实现。
+
+```elixir
+defmodule Parallel do
+  def pmap(collection, fun) do
+    import :rand, only: [uniform: 1]
+    import :timer, only: [sleep: 1]
+    # 这里的 me 指代的是主线程，子线程的计算结果都是要返回给主线程的
+    me = self()
+
+    collection
+    |> Enum.map(fn elem ->
+      spawn_link(fn ->
+        # 测试返回的顺序
+        sleep(uniform(500))
+        send(me, {self(), fun.(elem)})
+      end)
+    end)
+    |> Enum.map(fn pid ->
+      receive do
+        {^pid, result} -> result
+      end
+    end)
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Parallel, <<70, 79, 82, 49, 0, 0, 9, ...>>, {:pmap, 2}}
+```
+
+`receive` 里面，如果是 `{ ^pid, result }`，那么返回的值会按照集合最初的顺序进行排序，反之则按照返回值的顺序进行排序。
+
+```elixir
+# 按集合顺序排序
+1..10
+|> Parallel.pmap(&(&1 * &1))
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
+```
+
+```elixir
+# 按返回顺序排序
+1..10
+|> Parallel.pmap(&(&1 * &1))
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
+```
+
+## A Fibonacci Server
+
+```elixir
+defmodule FibSolver do
+  def fib(scheduler) do
+    send(scheduler, {:ready, self()})
+
+    receive do
+      {:fib, n, client} ->
+        send(client, {:answer, n, fib_calc(n), self()})
+        fib(scheduler)
+
+      {:shutdown} ->
+        exit(:normal)
+    end
+  end
+
+  def fib_calc(0), do: 0
+  def fib_calc(1), do: 1
+  def fib_calc(n), do: fib_calc(n - 1) + fib_calc(n - 2)
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, FibSolver, <<70, 79, 82, 49, 0, 0, 9, ...>>, {:fib_calc, 1}}
+```
+
+### The Task Scheduler
+
+```elixir
+
+```
+
+```elixir
+
 ```
