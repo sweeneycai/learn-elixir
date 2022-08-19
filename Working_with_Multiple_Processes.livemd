@@ -1,0 +1,312 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Working with Multiple Processes
+
+## Handling Multiple Messages
+
+一个最简单的线程间通信的案例
+
+```elixir
+defmodule Spawn do
+  def greet do
+    receive do
+      {sender, msg} ->
+        send(sender, {:ok, "Hello, #{msg}"})
+    end
+  end
+end
+
+pid = spawn(Spawn, :greet, [])
+send(pid, {self(), "world!"})
+
+receive do
+  {:ok, msg} ->
+    IO.puts(msg)
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Hello, world!
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+对于上面的例子，我们接着向 `Spawn` 发送消息，看看会发生什么？
+
+```elixir
+send(pid, {self(), "world!"})
+
+receive do
+  {:ok, msg} ->
+    IO.puts(msg)
+after
+  500 ->
+    IO.puts("Session closed")
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Session closed
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+可以看到上面的 *cell* halt 住了，这是因为上面定义的 `greet` 函数只能处理一条消息，如果要处理多条消息，需要使用递归。
+
+```elixir
+defmodule Spawn2 do
+  def greet do
+    receive do
+      {sender, msg} ->
+        send(sender, {:ok, "Hello, #{msg}"})
+        greet()
+    end
+  end
+end
+
+pid = spawn(Spawn2, :greet, [])
+
+send(pid, {self(), "world1"})
+
+receive do
+  {:ok, msg} ->
+    IO.puts(msg)
+after
+  500 ->
+    IO.puts("Connection closed")
+end
+
+send(pid, {self(), "world2"})
+
+receive do
+  {:ok, msg} ->
+    IO.puts(msg)
+after
+  500 ->
+    IO.puts("Connection closed")
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Hello, world1
+Hello, world2
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+### Recursion and the Stack
+
+```elixir
+defmodule TailRecursive do
+  def factorial(n), do: _factorial(n, 1)
+  def _factorial(0, acc), do: acc
+  def _factorial(n, acc), do: _factorial(n - 1, n * acc)
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, TailRecursive, <<70, 79, 82, 49, 0, 0, 7, ...>>, {:_factorial, 2}}
+```
+
+```elixir
+TailRecursive.factorial(90)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+1485715964481761497309522733620825737885569961284688766942216863704985393094065876545992131370884059645617234469978112000000000000000000000
+```
+
+### Process Overhead
+
+```elixir
+defmodule Chain do
+  # 要在子线程中执行的函数
+  def counter(next_pid) do
+    receive do
+      n ->
+        send(next_pid, n + 1)
+    end
+  end
+
+  def create_processes(n) do
+    # 创建一个新线程，并给新线程发送自己的PID
+    code_to_run = fn _, send_to ->
+      spawn(Chain, :counter, [send_to])
+    end
+
+    # 等价于 `fn n, acc -> code_to_run(n, acc)`
+    last = Enum.reduce(1..n, self(), code_to_run)
+
+    send(last, 0)
+
+    receive do
+      final_answer when is_integer(final_answer) ->
+        "Result is #{inspect(final_answer)}"
+    end
+  end
+
+  def run(n) do
+    :timer.tc(Chain, :create_processes, [n])
+    |> IO.inspect(lable: "processes")
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Chain, <<70, 79, 82, 49, 0, 0, 11, ...>>, {:run, 1}}
+```
+
+```elixir
+Chain.run(10)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{1774, "Result is 10"}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{1774, "Result is 10"}
+```
+
+```elixir
+Chain.run(100)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{321, "Result is 100"}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{321, "Result is 100"}
+```
+
+```elixir
+Chain.run(1000)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{3748, "Result is 1000"}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{3748, "Result is 1000"}
+```
+
+```elixir
+Chain.run(10000)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{45222, "Result is 10000"}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{45222, "Result is 10000"}
+```
+
+```elixir
+Chain.run(40000)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{191698, "Result is 40000"}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{191698, "Result is 40000"}
+```
+
+```elixir
+# 线程数超阈值报警
+Chain.run(400_000)
+```
+
+### When Processes Die
+
+```elixir
+:init.stop()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+
+07:57:23.919 [error] Too many processes
+
+
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+```elixir
+defmodule Link1 do
+  import :timer, only: [sleep: 1]
+
+  def sad_function do
+    sleep(500)
+    exit(:boom)
+  end
+
+  def run do
+    spawn(Link1, :sad_function, [])
+
+    receive do
+      msg -> IO.puts("MESSAGE RECEIVED: #{inspect(msg)}")
+    after
+      1000 ->
+        IO.puts("Nothing happend")
+    end
+  end
+end
+
+Link1.run()
+```

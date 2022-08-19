@@ -1,0 +1,238 @@
+# Processing Collections
+
+## Enum
+
+### Transform and select
+
+```elixir
+[1, 2, 3] ++ [4, 5, 6]
+```
+
+```elixir
+Enum.concat([1, 2, 3], [4, 5, 6])
+```
+
+```elixir
+1..10
+|> Enum.to_list()
+|> Enum.map(&(&1 * 10))
+```
+
+```elixir
+1..10
+|> Enum.at(3)
+```
+
+```elixir
+1..10
+|> Enum.filter(&(&1 > 5))
+```
+
+```elixir
+require Integer
+```
+
+```elixir
+1..10
+|> Enum.filter(&Integer.is_even/1)
+```
+
+```elixir
+1..10
+|> Enum.reject(&Integer.is_even/1)
+```
+
+```elixir
+1..10
+|> Enum.at(10)
+```
+
+```elixir
+1..10
+|> Enum.at(20, 0)
+```
+
+### Sort and compare
+
+```elixir
+["There", "was", "a", "crooked", "man"]
+|> Enum.sort()
+```
+
+```elixir
+["There", "was", "a", "crooked", "man"]
+|> Enum.max()
+```
+
+```elixir
+["There", "was", "a", "crooked", "man"]
+|> Enum.max_by(&String.length/1)
+```
+
+### Split
+
+```elixir
+1..10
+|> Enum.take(3)
+```
+
+```elixir
+1..10
+|> Enum.take_every(2)
+```
+
+```elixir
+1..10
+|> Enum.take_while(&(&1 < 5))
+```
+
+```elixir
+1..10
+|> Enum.split(3)
+```
+
+```elixir
+1..10
+|> Enum.split_while(&(&1 < 4))
+```
+
+### Join
+
+```elixir
+1..10
+|> Enum.join("→")
+```
+
+### Predict
+
+```elixir
+1..10
+|> Enum.all?(&(&1 < 10))
+```
+
+```elixir
+1..10
+|> Enum.any?(&(&1 < 10))
+```
+
+```elixir
+1..10
+|> Enum.member?(4)
+```
+
+```elixir
+1..10
+|> Enum.empty?()
+```
+
+### Merge
+
+```elixir
+1..10
+|> Enum.zip([:a, :b, :c])
+```
+
+```elixir
+[:a, :b, :c]
+|> Enum.with_index()
+```
+
+### Fold
+
+```elixir
+1..10
+|> Enum.reduce(&(&1 + &2))
+```
+
+```elixir
+["Now", "is", "the", "time"]
+|> Enum.reduce(fn word, longest ->
+  if String.length(word) > String.length(longest) do
+    word
+  else
+    longest
+  end
+end)
+```
+
+```elixir
+["Now", "is", "the", "time"]
+|> Enum.reduce(0, fn word, len ->
+  if String.length(word) > len do
+    String.length(word)
+  else
+    len
+  end
+end)
+```
+
+### Deal a hand of cards
+
+```elixir
+import Enum
+deck = for rank <- '23456789TJQKA', suit <- 'CDHS', do: [suit, rank]
+```
+
+```elixir
+deck
+|> shuffle
+|> take(13)
+```
+
+```elixir
+hands = deck |> shuffle |> chunk_every(13)
+```
+
+```elixir
+hands = deck |> shuffle |> chunk_every(4)
+```
+
+### Implement the followling *Enum* functions
+
+1. `all?`
+2. `each`
+3. `filter`
+4. `split`
+5. `take`
+
+```elixir
+defmodule EnumFunc do
+  def map(enum, f) do
+    for elm <- enum do
+      f.(elm)
+    end
+  end
+
+  def all1([], _f), do: true
+
+  def all1([head | tail], f) do
+    if f.(head) do
+      all1(tail, f)
+    else
+      false
+    end
+  end
+
+  def filter1([head | tail], f) do
+    if f.(head) do
+      [head | filter(tail, f)]
+    else
+      filter(tail, f)
+    end
+  end
+
+  def filter1([], _f), do: []
+end
+```
+
+```elixir
+[1, 2, 3]
+|> Enum.to_list()
+|> EnumFunc.all1(&(&1 < 11))
+```
+
+```elixir
+1..10
+|> Enum.to_list()
+|> EnumFunc.filter1(&(&1 < 5))
+```

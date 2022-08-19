@@ -1,0 +1,559 @@
+# Basics
+
+## Built-in Types
+
+## Collection Types
+
+### Tuples
+
+```elixir
+{status, count, action} = {:ok, 42, "next"}
+```
+
+```elixir
+{status, file} = File.ls()
+```
+
+```elixir
+{status, file} = File.open(".zshrc")
+```
+
+### Lists
+
+```elixir
+[1, 2, 3, 4] ++ [5, 6, 7, 8]
+```
+
+```elixir
+[1, 2, 3, 4] -- [1, 2]
+```
+
+### Keyoword Lists
+
+```elixir
+[name: "Dave", city: :Dollars, likes: "Programming"]
+```
+
+> Elixir allows us to leave off the square brackets if a keyword list is the last argument in a function call.
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+DB.save record, [ { :use_transaction, true }, { :logging, "HIGH" } ]
+```
+
+can be written as:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+DB.save record, use_transaction: true, logging: "HIGH"
+```
+
+## Maps
+
+Maps literal:
+
+*%{a => b, c => d}*
+
+```elixir
+states = %{"AL" => "Alabama", "WI" => "Wisconsin"}
+```
+
+```elixir
+responses = %{{:error, :enoent} => :fatal, {:error, :busy} => :retry}
+```
+
+```elixir
+name = "SunBoyang3"
+%{String.downcase(name) => name}
+```
+
+```elixir
+colors = %{:red => 0xFF0000, :green => 0x00FF00}
+```
+
+### Accessing a map
+
+```elixir
+states["AL"]
+```
+
+```elixir
+responses[{:error, :enoent}]
+```
+
+```elixir
+# 如果是tuple作为map的key，tuple元素中的顺序是有要求的
+responses[{:enoent, :error}]
+```
+
+```elixir
+colors.red
+```
+
+```elixir
+colors[:green]
+```
+
+## Binaries
+
+Binary literals:
+
+_<<>>_
+
+```elixir
+
+```
+
+## Dates and Times
+
+```elixir
+Date.new(2013, 1, 23)
+```
+
+```elixir
+{state, date} = Date.new(2022, 8, 5)
+```
+
+```elixir
+# 写为~D[2022-8-5]会报错，因为这不是标准的ISO格式
+d2 = ~D[2022-08-05]
+```
+
+```elixir
+date === d2
+```
+
+```elixir
+date === d2
+```
+
+```elixir
+Date.day_of_era(date)
+```
+
+```elixir
+Date.day_of_week(date)
+```
+
+```elixir
+Date.day_of_year(date)
+```
+
+```elixir
+Date.days_in_month(date)
+```
+
+```elixir
+Date.day_of_week(Date.utc_today())
+```
+
+```elixir
+Date.utc_today()
+```
+
+```elixir
+d1 = ~D[2022-08-01]
+d2 = Date.utc_today()
+range = Date.range(d1, d2)
+```
+
+```elixir
+Enum.count(range)
+```
+
+```elixir
+~D[2022-08-02] in range
+```
+
+```elixir
+t1 = ~T[12:34:56.78]
+```
+
+```elixir
+for dd <- range, do: IO.puts(dd)
+```
+
+## Names, Source Files, Conventions, Operators and so on...
+
+```elixir
+1 / 3
+```
+
+```elixir
+div(1, 3)
+```
+
+```elixir
+rem(3, 2)
+```
+
+```elixir
+true === true
+```
+
+## Variable Scope
+
+```elixir
+integer = 1
+
+atom =
+  case integer do
+    1 -> :one
+    2 -> :two
+  end
+```
+
+### The with Expression
+
+```elixir
+content = "Now is the time"
+
+lp =
+  with {:ok, file} = File.open("passwd"),
+       content = IO.read(file, :all),
+       :ok = File.close(file),
+       [_, uid, gid] = Regex.run(~r/^_lp:.*?:(\d+):(\d+)/m, content) do
+    "Group: #{gid}, User: #{uid}"
+  end
+
+IO.puts(lp)
+IO.puts(content)
+```
+
+### A minor Gocha
+
+<!-- livebook:{"break_markdown":true} -->
+
+This is wrong:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+with
+  sum = Enum.sum(values),
+  cnt = Enum.count(values)
+do:
+  sum / cnt
+```
+
+```elixir
+values = 1..10
+
+with sum = Enum.sum(values),
+     cnt = Enum.count(values),
+     do: sum / cnt
+```
+
+```elixir
+# 或者
+with sum = Enum.sum(values),
+     cnt = Enum.count(values) do
+  sum / cnt
+end
+```
+
+```elixir
+# 再或者
+with(
+  sum = Enum.sum(values),
+  cnt = Enum.count(values),
+  do: sum / cnt
+)
+```
+
+## Anonymous Function
+
+```elixir
+sum = fn a, b -> a + b end
+```
+
+We don't use `.` for named functions but for annonymous functions.
+
+```elixir
+sum.(1, 2)
+```
+
+```elixir
+greet = fn -> IO.puts("annonymous functions") end
+greet.()
+```
+
+```elixir
+list_concat = fn la, lb -> la ++ lb end
+list_concat.([:a, :b], [:c, :d])
+```
+
+```elixir
+sum = fn a, b, c -> a + b + c end
+sum.(1, 2, 3)
+```
+
+```elixir
+pair_map_to_list = fn tp ->
+  Map.keys(tp) ++ Map.values(tp)
+end
+
+pair_tuple_to_list = fn tp ->
+  tp
+  |> Tuple.to_list()
+end
+```
+
+```elixir
+pair_map_to_list.(%{"k1" => 2, "k2" => 4})
+```
+
+```elixir
+pair_tuple_to_list.({1, 2, 3, 4})
+```
+
+### One function, multiple bodies
+
+Partial functions
+
+```elixir
+handle_open = fn
+  {:ok, file} -> "Read data: #{IO.read(file, :line)}"
+  {_, error} -> "Error: #{:file.format_error(error)}"
+end
+```
+
+```elixir
+handle_open.(File.open(".zshrc"))
+```
+
+```elixir
+three_args = fn
+  0, 0, _ -> "FizzBuzz"
+  0, _, _ -> "Fizz"
+  _, 0, _ -> "Buzz"
+  _, _, c -> c
+end
+```
+
+```elixir
+three_args.(0, 1, 2)
+```
+
+```elixir
+three_args.(0, 0, 1)
+```
+
+```elixir
+three_args.(1, 1, 0)
+```
+
+## Functions can return functions
+
+```elixir
+fun1 = fn -> fn -> "Hello" end end
+```
+
+```elixir
+fun1.().()
+```
+
+```elixir
+
+```
+
+### Funtions Remember their Origional Env
+
+Closure
+
+```elixir
+greeter = fn name -> fn -> "Hello, #{name}" end end
+```
+
+```elixir
+greeter.(1).()
+```
+
+### Parameterized Functions
+
+```elixir
+add_n = fn n -> fn other -> n + other end end
+```
+
+```elixir
+add_n.(2).(3)
+```
+
+```elixir
+prefix = fn s1 -> fn s2 -> "#{s1} #{s2}" end end
+```
+
+```elixir
+prefix.("1").("2")
+```
+
+### Passing functions as parameters
+
+```elixir
+times2 = fn n -> n * 2 end
+```
+
+```elixir
+applys = fn fun, value -> fun.(value) end
+applys.(times2, 1)
+```
+
+### Pinned values and function paramters
+
+```elixir
+defmodule Greeter do
+  def for(name, greeting) do
+    fn
+      ^name -> "#{greeting} #{name}"
+      _ -> "I don't know you"
+    end
+  end
+end
+```
+
+```elixir
+greeter = Greeter.for("Christian", "Hello")
+```
+
+```elixir
+greeter.("Christian")
+```
+
+```elixir
+greeter.("bb")
+```
+
+### The `&` notation
+
+```elixir
+add_one = &(&1 + 1)
+```
+
+```elixir
+add_one.(1)
+```
+
+```elixir
+# 此处Elixir会优化匿名函数，直接调用命名函数
+puts = &IO.puts(&1)
+```
+
+```elixir
+# 要想编译器进行上述的自动优化，需要保证参数的顺序保持一致
+&Float.round(&1, &2)
+```
+
+```elixir
+# 匿名函数调用未被优化
+fn a, b -> Float.round(a, b) end
+```
+
+```elixir
+# 匿名函数调用未被优化
+&Float.round(&2, &1)
+```
+
+```elixir
+divrem = &{div(&1, &2), rem(&1, &2), &1 / &2}
+```
+
+```elixir
+divrem.(3, 2)
+```
+
+`&` with string literals:
+
+```elixir
+match_end = &~r/.*#{&1}$/
+```
+
+```elixir
+# https://stackoverflow.com/questions/44671445/what-is-operator-in-elixir
+"end" =~ match_end.("end")
+```
+
+## Modules and Named Functions
+
+```elixir
+# Module 名称的首字母必须大写
+# 模块内函数的解析顺序是从上至下，如果这两个 `of` 函数顺序颠倒了会报错
+defmodule Factorial do
+  def of(0), do: {1, "1"}
+
+  def of(n) do
+    # Pattern matching is awesome!
+    {n1, s1} = of(n - 1)
+    {n * n1, "#{n} * #{s1}"}
+  end
+end
+```
+
+```elixir
+Factorial.of(9)
+```
+
+```elixir
+defmodule Sum do
+  def of(0) do
+    0
+  end
+
+  def of(n) do
+    n + of(n - 1)
+  end
+end
+```
+
+```elixir
+Sum.of(23)
+```
+
+```elixir
+defmodule GCD do
+  def of(x, 0), do: x
+  def of(x, y), do: of(y, rem(x, y))
+end
+```
+
+```elixir
+GCD.of(6, 9)
+```
+
+### Default parameters
+
+```elixir
+defmodule Example do
+  def func(a, b \\ 2, c \\ 3, d) do
+    {a, b, c, d}
+  end
+end
+```
+
+```elixir
+Example.func("a", "b")
+```
+
+```elixir
+Example.func("a", "b", "c")
+```
+
+```elixir
+Example.func("a", "b", "c", "d")
+```
+
+### Module Attributes
+
+```elixir
+defmodule Example do
+  @date Date.utc_today()
+  def today() do
+    Date.to_string(@date)
+  end
+end
+```
+
+```elixir
+Example.today()
+```
