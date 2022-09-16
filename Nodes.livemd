@@ -1,0 +1,147 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Nodes--The Key to Distributing Services
+
+## Naming Nodes
+
+查看当前节点的名称：
+
+```elixir
+Node.self()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:"s2t6vtwt-livebook_app@sweeneycai-mac"
+```
+
+可以起来多个节点，比如先起一个节点一：
+
+```
+❯ iex --sname node_one
+Erlang/OTP 25 [erts-13.0.3] [source] [64-bit] [smp:12:12] [ds:12:12:10] [async-threads:1] [jit:ns] [dtrace]
+
+Interactive Elixir (1.13.4) - press Ctrl+C to exit (type h() ENTER for help)
+iex(node_one@sweeneycai-mac)1>
+```
+
+再起一个节点二然后连接刚才的节点一：
+
+```
+iex(node_two@sweeneycai-mac)8> Node.list
+[]
+iex(node_two@sweeneycai-mac)9> Node.connect :"node_one@sweeneycai-mac"
+true
+iex(node_two@sweeneycai-mac)10> Node.list
+[:"node_one@sweeneycai-mac"]
+iex(node_two@sweeneycai-mac)11>
+```
+
+这个时候查看节点一已连接的节点列表：
+
+```
+iex(node_one@sweeneycai-mac)1> Node.list
+[:"node_two@sweeneycai-mac"]
+```
+
+案例二，在不同的节点下执行函数，该函数打印出当前工作文件夹下的所有文件名称：
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+iex(node_one@sweeneycai-mac)4> fun = fn -> IO.puts(Enum.join(File.ls!, ",")) end
+#Function<43.3316493/0 in :erl_eval.expr/6>
+iex(node_one@sweeneycai-mac)5> fun.()
+ProcessingCollections.livemd,ListsAndRecursion.livemd,Nodes.livemd,Basics.livemd,.git,Working_with_Multiple_Processes.livemd
+:ok
+iex(node_one@sweeneycai-mac)6> Node.spawn(:"node_two@sweeneycai-mac", fun)
+ProcessingCollections.livemd,ListsAndRecursion.livemd,Nodes.livemd,Basics.livemd,.git,Working_with_Multiple_Processes.livemd
+#PID<12285.118.0>
+```
+
+## Naming Your Processes
+
+```elixir
+Node.get_cookie()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:uNB116OdjasWPiphllrtXemvdpBxewSW
+```
+
+案例，一个 tick 服务器：
+
+```elixir
+defmodule Ticker do
+  @interval 10000
+  @name :ticker
+  def start do
+    # 新起一个线程，在 global 上注册 generator 所在的线程
+    pid = spawn(__MODULE__, :generator, [[]])
+    :global.register_name(@name, pid)
+  end
+
+  # 供客户端使用，注册客户端
+  def register(client_pid) do
+    send(:global.whereis_name(@name), {:register, client_pid})
+  end
+
+  def generator(clients) do
+    receive do
+      # 接收到注册客户端的消息，对客户端节点进行注册
+      {:register, pid} ->
+        IO.puts("registering #{inspect(pid)} #{inspect(Node.self())}")
+        generator([pid | clients])
+    after
+      @interval ->
+        # 没有接收到注册消息，但是超时时间到了，需要进行保活
+        IO.puts("tick")
+        # 向每一个客户端发送保活信息
+        Enum.each(clients, fn client -> send(client, {:tick}) end)
+        generator(clients)
+    end
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Ticker, <<70, 79, 82, 49, 0, 0, 10, ...>>, {:generator, 1}}
+```
+
+一个 tick 客户端：
+
+```elixir
+defmodule Client do
+  def start do
+    # 新起一个客户端，并在 generator 上进行注册
+    pid = spawn(__MODULE__, :receiver, [])
+    Ticker.register(pid)
+  end
+
+  def receiver do
+    receive do
+      # 保活信息处理器
+      {:tick} ->
+        IO.puts("tick in client #{inspect(Node.self())}")
+        receiver()
+    end
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Client, <<70, 79, 82, 49, 0, 0, 7, ...>>, {:receiver, 0}}
+```
+
+## Input, Output, PIDs, and Nodes
+
+```elixir
+
+```

@@ -187,13 +187,13 @@ Chain.run(10)
 <!-- livebook:{"output":true} -->
 
 ```
-{0, "Result is 10"}
+{39, "Result is 10"}
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{0, "Result is 10"}
+{39, "Result is 10"}
 ```
 
 ```elixir
@@ -203,13 +203,13 @@ Chain.run(100)
 <!-- livebook:{"output":true} -->
 
 ```
-{307, "Result is 100"}
+{249, "Result is 100"}
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{307, "Result is 100"}
+{249, "Result is 100"}
 ```
 
 ```elixir
@@ -219,13 +219,13 @@ Chain.run(1000)
 <!-- livebook:{"output":true} -->
 
 ```
-{6553, "Result is 1000"}
+{4299, "Result is 1000"}
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{6553, "Result is 1000"}
+{4299, "Result is 1000"}
 ```
 
 ```elixir
@@ -235,13 +235,13 @@ Chain.run(10000)
 <!-- livebook:{"output":true} -->
 
 ```
-{62361, "Result is 10000"}
+{43853, "Result is 10000"}
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{62361, "Result is 10000"}
+{43853, "Result is 10000"}
 ```
 
 ```elixir
@@ -251,13 +251,13 @@ Chain.run(40000)
 <!-- livebook:{"output":true} -->
 
 ```
-{228044, "Result is 40000"}
+{157335, "Result is 40000"}
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{228044, "Result is 40000"}
+{157335, "Result is 40000"}
 ```
 
 ```elixir
@@ -373,7 +373,7 @@ Link3.run()
 <!-- livebook:{"output":true} -->
 
 ```
-MESSAGE RECEIVED: {:EXIT, #PID<0.4187.3>, :boom}
+MESSAGE RECEIVED: {:EXIT, #PID<0.23332.4>, :boom}
 ```
 
 <!-- livebook:{"output":true} -->
@@ -418,7 +418,7 @@ Monitor1.run()
 <!-- livebook:{"output":true} -->
 
 ```
-MESSAGE RECEIVED: {:DOWN, #Reference<0.610076405.1359216643.194172>, :process, #PID<0.4303.3>, :boom}
+MESSAGE RECEIVED: {:DOWN, #Reference<0.3873322662.1381761030.22531>, :process, #PID<0.23336.4>, :boom}
 ```
 
 <!-- livebook:{"output":true} -->
@@ -509,24 +509,231 @@ defmodule FibSolver do
     end
   end
 
-  def fib_calc(0), do: 0
-  def fib_calc(1), do: 1
-  def fib_calc(n), do: fib_calc(n - 1) + fib_calc(n - 2)
+  defp fib_calc(0), do: 0
+  defp fib_calc(1), do: 1
+  defp fib_calc(n), do: fib_calc(n - 1) + fib_calc(n - 2)
 end
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, FibSolver, <<70, 79, 82, 49, 0, 0, 9, ...>>, {:fib_calc, 1}}
+{:module, FibSolver, <<70, 79, 82, 49, 0, 0, 8, ...>>, {:fib_calc, 1}}
 ```
 
 ### The Task Scheduler
 
 ```elixir
+defmodule Scheduler do
+  # num_processes: 并行度
+  # to_calculate: 要运行的函数的参数
+  def run(num_processes, module, func, to_calculate) do
+    1..num_processes
+    |> Enum.map(fn _ -> spawn(module, func, [self()]) end)
+    |> schedule_processes(to_calculate, [])
+  end
 
+  defp schedule_processes(processes, queue, results) do
+    receive do
+      {:ready, pid} when queue != [] ->
+        # worker 已经准备好执行任务，且此时有任务需要去执行
+        # 从任务队列中取出一个任务并交给 worker 去执行
+        [next | tail] = queue
+        send(pid, {:fib, next, self()})
+        # 接着调度剩下的任务
+        schedule_processes(processes, tail, results)
+
+      {:ready, pid} ->
+        # 此时又有一个 worker 空闲等待处理任务
+        send(pid, {:shutdown})
+
+        if length(processes) > 1 do
+          # 但是任务队列中已经没有任务要去执行了
+          # 这个时候需要将 worker 所在的线程释放
+          schedule_processes(List.delete(processes, pid), queue, results)
+        else
+          # 其他的线程都释放了，那最终就要对结果进行排序咯
+          Enum.sort(results, fn {n1, _, _}, {n2, _, _} -> n1 <= n2 end)
+        end
+
+      {:answer, number, result, _pid} ->
+        # 有了执行结果，把执行结果加进来
+        schedule_processes(processes, queue, [{number, result, Time.utc_now()} | results])
+    end
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Scheduler, <<70, 79, 82, 49, 0, 0, 12, ...>>, {:schedule_processes, 3}}
 ```
 
 ```elixir
+to_process = List.duplicate(37, 20)
+```
+
+<!-- livebook:{"output":true} -->
 
 ```
+'%%%%%%%%%%%%%%%%%%%%'
+```
+
+```elixir
+Enum.each(1..10, fn num_processes ->
+  # `timer.tc` 用于计时
+  {time, result} = :timer.tc(Scheduler, :run, [num_processes, FibSolver, :fib, to_process])
+
+  if num_processes == 1 do
+    IO.puts(inspect(result) |> String.split("},") |> Enum.join("\n"))
+    IO.puts("\n # time(s) generated_time")
+  end
+
+  :io.format("~2B ~.2f~n", [num_processes, time / 1_000_000.0])
+end)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[{37, 24157817, ~T[03:33:10.811310]
+ {37, 24157817, ~T[03:33:10.536195]
+ {37, 24157817, ~T[03:33:10.261267]
+ {37, 24157817, ~T[03:33:09.973512]
+ {37, 24157817, ~T[03:33:09.693873]
+ {37, 24157817, ~T[03:33:09.418357]
+ {37, 24157817, ~T[03:33:09.142824]
+ {37, 24157817, ~T[03:33:08.867126]
+ {37, 24157817, ~T[03:33:08.591690]
+ {37, 24157817, ~T[03:33:08.316371]
+ {37, 24157817, ~T[03:33:08.040654]
+ {37, 24157817, ~T[03:33:07.764506]
+ {37, 24157817, ~T[03:33:07.489383]
+ {37, 24157817, ~T[03:33:07.211780]
+ {37, 24157817, ~T[03:33:06.935541]
+ {37, 24157817, ~T[03:33:06.660444]
+ {37, 24157817, ~T[03:33:06.385198]
+ {37, 24157817, ~T[03:33:06.106274]
+ {37, 24157817, ~T[03:33:05.830094]
+ {37, 24157817, ~T[03:33:05.554332]}]
+
+ # time(s) generated_time
+ 1 5.63
+ 2 4.16
+ 3 2.53
+ 4 1.78
+ 5 1.39
+ 6 1.42
+ 7 1.21
+ 8 1.18
+ 9 1.34
+10 1.22
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+上面的例子可以理解为，我们的线程池中有10个线程，但我们共有20个任务要去执行。调度器的作用就是调度任务如何在线程池中去执行。添加了数据生成时间之后可以看到各个线程的调度顺序如何。
+
+```elixir
+Enum.each(1..5, fn num_processes ->
+  # `timer.tc` 用于计时
+  {time, result} = :timer.tc(Scheduler, :run, [num_processes, FibSolver, :fib, to_process])
+
+  if num_processes == 1 do
+    IO.puts(inspect(result) |> String.split("},") |> Enum.join("\n"))
+    IO.puts("\n # time(s)")
+  end
+
+  :io.format("~2B ~.2f~n", [num_processes, time / 1_000_000.0])
+end)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[{37, 24157817, ~T[06:14:37.391866]
+ {37, 24157817, ~T[06:14:37.113264]
+ {37, 24157817, ~T[06:14:36.834595]
+ {37, 24157817, ~T[06:14:36.558546]
+ {37, 24157817, ~T[06:14:36.280493]
+ {37, 24157817, ~T[06:14:35.988872]
+ {37, 24157817, ~T[06:14:35.703228]
+ {37, 24157817, ~T[06:14:35.424814]
+ {37, 24157817, ~T[06:14:35.148170]
+ {37, 24157817, ~T[06:14:34.862374]
+ {37, 24157817, ~T[06:14:34.585593]
+ {37, 24157817, ~T[06:14:34.306187]
+ {37, 24157817, ~T[06:14:34.030118]
+ {37, 24157817, ~T[06:14:33.752137]
+ {37, 24157817, ~T[06:14:33.476760]
+ {37, 24157817, ~T[06:14:33.201725]
+ {37, 24157817, ~T[06:14:32.923918]
+ {37, 24157817, ~T[06:14:32.647704]
+ {37, 24157817, ~T[06:14:32.370383]
+ {37, 24157817, ~T[06:14:32.092140]}]
+
+ # time(s) generated_time
+ 1 5.63
+ 2 2.82
+ 3 1.99
+ 4 1.52
+ 5 1.33
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+### 思考——实现一个更通用的调度器
+
+## Agents——A Teaser
+
+Elixir 的模块只是函数的集合，并不携带状态，但是线程可以携带状态。自带的 `Agent` 模块可以抽象一个包含状态的线程，并提供了非常友好的 API 。
+
+```elixir
+defmodule FibAgent do
+  def start_link do
+    Agent.start_link(fn -> %{0 => 0, 1 => 1} end)
+  end
+
+  def fib(pid, n) when n >= 0 do
+    Agent.get_and_update(pid, &do_fib(&1, n))
+  end
+
+  def do_fib(cache, n) do
+    case cache[n] do
+      nil ->
+        {n_1, cache} = do_fib(cache, n - 1)
+        result = n_1 + cache[n - 2]
+        {result, Map.put(cache, n, result)}
+
+      cached_value ->
+        {cached_value, cache}
+    end
+  end
+end
+
+{:ok, agent} = FibAgent.start_link()
+IO.puts(FibAgent.fib(agent, 2000))
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+4224696333392304878706725602341482782579852840250681098010280137314308584370130707224123599639141511088446087538909603607640194711643596029271983312598737326253555802606991585915229492453904998722256795316982874482472992263901833716778060607011615497886719879858311468870876264597369086722884023654422295243347964480139515349562972087652656069529806499841977448720155612802665404554171717881930324025204312082516817125
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+有关 `Agent`，具体可以看 [Agent](https://hexdocs.pm/elixir/1.13/Agent.html#get_and_update/3)。整个实现机制类似于 **Scala** 的 `State`，是一个有关状态的简单抽象，用于存储和获取不同线程的状态，抑或是获取同一线程在不同时间点的状态。
