@@ -15,7 +15,15 @@ defmodule Duper.MixProject do
   def application do
     [
       extra_applications: [:logger, :crypto],
-      mod: {Duper.Application, []}
+      mod: {Duper.Application, []},
+      env: [path: "C:\\Users\\chris\\IdeaProjects\\", woker: 5],
+      registered: [
+        Duper.Results,
+        Duper.PathFinder,
+        Duper.WorkerSupervisor,
+        Duper.Gatherer,
+        Duper.Worker
+      ]
     ]
   end
 
