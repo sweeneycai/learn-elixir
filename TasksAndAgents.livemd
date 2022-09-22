@@ -1,0 +1,186 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Tasks and Agents
+
+## Tasks
+
+`Task.async` creates a background process that runs the given function, once the task is running, the code continues with other work. If we want to get the function's value, we can call `Task.await(task)`:
+
+```elixir
+defmodule Fib do
+  def of(0), do: 0
+  def of(1), do: 1
+  def of(n), do: of(n - 1) + of(n - 2)
+end
+
+IO.puts("Start the task...")
+worker1 = Task.async(fn -> Fib.of(40) end)
+worker2 = Task.async(Fib, :of, [20])
+IO.puts("Do something else...")
+IO.puts("Wait for the task...")
+result1 = Task.await(worker1)
+result2 = Task.await(worker2)
+IO.puts("result1 = #{result1} result2 = #{result2}")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Start the task...
+Do something else...
+Wait for the task...
+result1 = 102334155 result2 = 6765
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+### Tasks and Supervison
+
+Tasks are implemented as OTP servers, which means we can add them to our application's supervision tree.
+
+## Agents
+
+> An agent is a background process that maintains state. This state can be
+> accessed at different places within a process or node, or across multiple nodes.
+> The initial state is set by a function we pass in when we start the agent.
+
+```elixir
+{:ok, count} = Agent.start(fn -> 0 end)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, #PID<0.321.0>}
+```
+
+```elixir
+Agent.get(count, & &1)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+0
+```
+
+```elixir
+Agent.update(count, &(&1 + 1))
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+```elixir
+Agent.get(count, & &1)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+1
+```
+
+*count* hoolds the agent process's PID, we can also give agents a local or global name and access them using this name.
+
+```elixir
+Agent.start(fn -> 1 end, name: :Sum)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, #PID<0.381.0>}
+```
+
+```elixir
+Agent.get(:Sum, & &1)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+1
+```
+
+The following example shows a more typical use. The `Frequence` module maintains a list of word/frequency pairs in a map:
+
+```elixir
+defmodule Frequency do
+  def start_link do
+    Agent.start_link(fn -> %{} end, name: __MODULE__)
+  end
+
+  def add_word(word) do
+    Agent.update(__MODULE__, fn map -> Map.update(map, word, 1, &(&1 + 1)) end)
+  end
+
+  def count_for(word) do
+    Agent.get(__MODULE__, fn map -> map[word] end)
+  end
+
+  def words do
+    Agent.get(__MODULE__, fn map -> Map.keys(map) end)
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Frequency, <<70, 79, 82, 49, 0, 0, 10, ...>>, {:words, 0}}
+```
+
+```elixir
+Frequency.start_link()
+Frequency.add_word("dave")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+```elixir
+Frequency.words()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+["dave"]
+```
+
+```elixir
+Frequency.add_word("was")
+Frequency.add_word("here")
+Frequency.add_word("was")
+Frequency.add_word("he")
+Frequency.add_word("dave")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+```elixir
+Frequency.count_for("dave")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+2
+```
+
+## A Bigger Example
