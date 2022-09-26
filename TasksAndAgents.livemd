@@ -97,7 +97,11 @@ Agent.start(fn -> 1 end, name: :Sum)
 <!-- livebook:{"output":true} -->
 
 ```
+<<<<<<< HEAD
 {:ok, #PID<0.378.0>}
+=======
+{:ok, #PID<0.572.0>}
+>>>>>>> 4c8a4758c8b633cd949bdd6094263f0a20cb9f41
 ```
 
 ```elixir
@@ -190,7 +194,12 @@ defmodule Dictionary do
   @name __MODULE__
 
   # External API
+<<<<<<< HEAD
   def start_link, do: Agent.start_link(fn -> %{} end, name: @name)
+=======
+  def start_link,
+    do: Agent.start_link(fn -> %{} end, name: @name)
+>>>>>>> 4c8a4758c8b633cd949bdd6094263f0a20cb9f41
 
   def add_words(words),
     do: Agent.update(@name, &do_add_words(&1, words))
@@ -198,6 +207,7 @@ defmodule Dictionary do
   def anagrams_of(word),
     do: Agent.get(@name, &Map.get(&1, signature_of(word)))
 
+<<<<<<< HEAD
   # Internal implementation
   defp do_add_words(map, words) do
     Enum.reduce(words, map, &add_one_word(&1, &2))
@@ -227,12 +237,28 @@ defmodule WordlistLoader do
     |> Enum.map(&String.trim/1)
     |> Dictionary.add_words()
   end
+=======
+  def get, do: Agent.get(@name, & &1)
+
+  # Internal implementation
+  defp do_add_words(map, words),
+    do: Enum.reduce(words, map, &add_one_word(&1, &2))
+
+  # 添加一个单词。*key* 是单词的顺序表示，*value* 是输入的单词。
+  defp add_one_word(word, map),
+    do: Map.update(map, signature_of(word), [word], &[word | &1])
+
+  # 生成一个单词的标签。
+  defp signature_of(word),
+    do: word |> to_charlist |> Enum.sort() |> to_string
+>>>>>>> 4c8a4758c8b633cd949bdd6094263f0a20cb9f41
 end
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
+<<<<<<< HEAD
 {:module, WordlistLoader, <<70, 79, 82, 49, 0, 0, 8, ...>>, {:load_task, 1}}
 ```
 
@@ -254,6 +280,12 @@ File.ls("#{proj_dir}/words")
 ```
 
 And now we can run our program:
+=======
+{:module, Dictionary, <<70, 79, 82, 49, 0, 0, 13, ...>>, {:signature_of, 1}}
+```
+
+### 测试
+>>>>>>> 4c8a4758c8b633cd949bdd6094263f0a20cb9f41
 
 ```elixir
 Dictionary.start_link()
@@ -262,6 +294,7 @@ Dictionary.start_link()
 <!-- livebook:{"output":true} -->
 
 ```
+<<<<<<< HEAD
 {:ok, #PID<0.662.0>}
 ```
 
@@ -269,21 +302,37 @@ Dictionary.start_link()
 1..4
 |> Enum.map(&"#{proj_dir}/words/list#{&1}")
 |> WordlistLoader.load_from_files()
+=======
+{:ok, #PID<0.631.0>}
+```
+
+```elixir
+Dictionary.add_words(["Hello", "World", "Sleepy", "cat", "Wodlr"])
+>>>>>>> 4c8a4758c8b633cd949bdd6094263f0a20cb9f41
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
+<<<<<<< HEAD
 [:ok, :ok, :ok, :ok]
 ```
 
 ```elixir
 Dictionary.anagrams_of("organ")
+=======
+:ok
+```
+
+```elixir
+Dictionary.get()
+>>>>>>> 4c8a4758c8b633cd949bdd6094263f0a20cb9f41
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
+<<<<<<< HEAD
 ["ronga", "rogan", "orang", "nagor", "groan", "grano", "goran", "argon", "angor"]
 ```
 
@@ -291,4 +340,12 @@ Dictionary.anagrams_of("organ")
 
 ```elixir
 
+=======
+%{
+  "Hello" => ["Hello", "Hello"],
+  "Seelpy" => ["Sleepy", "Sleepy"],
+  "Wdlor" => ["Wodlr", "World", "World"],
+  "act" => ["cat", "cat"]
+}
+>>>>>>> 4c8a4758c8b633cd949bdd6094263f0a20cb9f41
 ```
