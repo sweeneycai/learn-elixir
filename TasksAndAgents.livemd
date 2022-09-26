@@ -55,7 +55,7 @@ Tasks are implemented as OTP servers, which means we can add them to our applica
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, #PID<0.321.0>}
+{:ok, #PID<0.571.0>}
 ```
 
 ```elixir
@@ -97,7 +97,7 @@ Agent.start(fn -> 1 end, name: :Sum)
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, #PID<0.381.0>}
+{:ok, #PID<0.572.0>}
 ```
 
 ```elixir
@@ -184,3 +184,76 @@ Frequency.count_for("dave")
 ```
 
 ## A Bigger Example
+
+```elixir
+defmodule Dictionary do
+  @name __MODULE__
+
+  # External API
+  def start_link,
+    do: Agent.start_link(fn -> %{} end, name: @name)
+
+  def add_words(words),
+    do: Agent.update(@name, &do_add_words(&1, words))
+
+  def anagrams_of(word),
+    do: Agent.get(@name, &Map.get(&1, signature_of(word)))
+
+  def get, do: Agent.get(@name, & &1)
+
+  # Internal implementation
+  defp do_add_words(map, words),
+    do: Enum.reduce(words, map, &add_one_word(&1, &2))
+
+  # 添加一个单词。*key* 是单词的顺序表示，*value* 是输入的单词。
+  defp add_one_word(word, map),
+    do: Map.update(map, signature_of(word), [word], &[word | &1])
+
+  # 生成一个单词的标签。
+  defp signature_of(word),
+    do: word |> to_charlist |> Enum.sort() |> to_string
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Dictionary, <<70, 79, 82, 49, 0, 0, 13, ...>>, {:signature_of, 1}}
+```
+
+### 测试
+
+```elixir
+Dictionary.start_link()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, #PID<0.631.0>}
+```
+
+```elixir
+Dictionary.add_words(["Hello", "World", "Sleepy", "cat", "Wodlr"])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+```elixir
+Dictionary.get()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  "Hello" => ["Hello", "Hello"],
+  "Seelpy" => ["Sleepy", "Sleepy"],
+  "Wdlor" => ["Wodlr", "World", "World"],
+  "act" => ["cat", "cat"]
+}
+```
