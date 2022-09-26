@@ -55,7 +55,7 @@ Tasks are implemented as OTP servers, which means we can add them to our applica
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, #PID<0.321.0>}
+{:ok, #PID<0.377.0>}
 ```
 
 ```elixir
@@ -97,7 +97,7 @@ Agent.start(fn -> 1 end, name: :Sum)
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, #PID<0.381.0>}
+{:ok, #PID<0.378.0>}
 ```
 
 ```elixir
@@ -184,3 +184,111 @@ Frequency.count_for("dave")
 ```
 
 ## A Bigger Example
+
+```elixir
+defmodule Dictionary do
+  @name __MODULE__
+
+  # External API
+  def start_link, do: Agent.start_link(fn -> %{} end, name: @name)
+
+  def add_words(words),
+    do: Agent.update(@name, &do_add_words(&1, words))
+
+  def anagrams_of(word),
+    do: Agent.get(@name, &Map.get(&1, signature_of(word)))
+
+  # Internal implementation
+  defp do_add_words(map, words) do
+    Enum.reduce(words, map, &add_one_word(&1, &2))
+  end
+
+  defp add_one_word(word, map) do
+    Map.update(map, signature_of(word), [word], &[word | &1])
+  end
+
+  defp signature_of(word) do
+    word
+    |> to_charlist
+    |> Enum.sort()
+    |> to_string
+  end
+end
+
+defmodule WordlistLoader do
+  def load_from_files(file_names) do
+    file_names
+    |> Stream.map(fn name -> Task.async(fn -> load_task(name) end) end)
+    |> Enum.map(&Task.await/1)
+  end
+
+  defp load_task(file_name) do
+    File.stream!(file_name, [], :line)
+    |> Enum.map(&String.trim/1)
+    |> Dictionary.add_words()
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, WordlistLoader, <<70, 79, 82, 49, 0, 0, 8, ...>>, {:load_task, 1}}
+```
+
+### Run our programms
+
+<!-- livebook:{"break_markdown":true} -->
+
+We have four wordlists under *words/*  :
+
+```elixir
+proj_dir = "C:\\Users\\chris\\IdeaProjects\\learn-elixir"
+File.ls("#{proj_dir}/words")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, ["list1", "list2", "list3", "list4"]}
+```
+
+And now we can run our program:
+
+```elixir
+Dictionary.start_link()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, #PID<0.662.0>}
+```
+
+```elixir
+1..4
+|> Enum.map(&"#{proj_dir}/words/list#{&1}")
+|> WordlistLoader.load_from_files()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[:ok, :ok, :ok, :ok]
+```
+
+```elixir
+Dictionary.anagrams_of("organ")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+["ronga", "rogan", "orang", "nagor", "groan", "grano", "goran", "argon", "angor"]
+```
+
+### Making It Distributed
+
+```elixir
+
+```
