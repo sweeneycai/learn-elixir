@@ -1,8 +1,8 @@
-<!-- livebook:{"persist_outputs":true} -->
-
 # Tasks and Agents
 
-## Tasks
+## Tasks and Agents
+
+### Tasks
 
 `Task.async` creates a background process that runs the given function, once the task is running, the code continues with other work. If we want to get the function's value, we can call `Task.await(task)`:
 
@@ -23,24 +23,13 @@ result2 = Task.await(worker2)
 IO.puts("result1 = #{result1} result2 = #{result2}")
 ```
 
-<!-- livebook:{"output":true} -->
-
-```
-Start the task...
-Do something else...
-Wait for the task...
-result1 = 102334155 result2 = 6765
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-:ok
-```
-
 ### Tasks and Supervison
 
 Tasks are implemented as OTP servers, which means we can add them to our application's supervision tree.
+
+```elixir
+{:ok, count} = Agent.start(fn -> 0 end)
+```
 
 ## Agents
 
@@ -49,69 +38,25 @@ Tasks are implemented as OTP servers, which means we can add them to our applica
 > The initial state is set by a function we pass in when we start the agent.
 
 ```elixir
-{:ok, count} = Agent.start(fn -> 0 end)
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-{:ok, #PID<0.377.0>}
-```
-
-```elixir
 Agent.get(count, & &1)
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-0
 ```
 
 ```elixir
 Agent.update(count, &(&1 + 1))
 ```
 
-<!-- livebook:{"output":true} -->
-
-```
-:ok
-```
-
 ```elixir
 Agent.get(count, & &1)
 ```
 
-<!-- livebook:{"output":true} -->
-
-```
-1
-```
-
-*count* hoolds the agent process's PID, we can also give agents a local or global name and access them using this name.
+*count* holds the agent process's PID, we can also give agents a local or global name and access them using this name.
 
 ```elixir
 Agent.start(fn -> 1 end, name: :Sum)
 ```
 
-<!-- livebook:{"output":true} -->
-
-```
-<<<<<<< HEAD
-{:ok, #PID<0.378.0>}
-=======
-{:ok, #PID<0.572.0>}
->>>>>>> 4c8a4758c8b633cd949bdd6094263f0a20cb9f41
-```
-
 ```elixir
 Agent.get(:Sum, & &1)
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-1
 ```
 
 The following example shows a more typical use. The `Frequence` module maintains a list of word/frequency pairs in a map:
@@ -136,31 +81,13 @@ defmodule Frequency do
 end
 ```
 
-<!-- livebook:{"output":true} -->
-
-```
-{:module, Frequency, <<70, 79, 82, 49, 0, 0, 10, ...>>, {:words, 0}}
-```
-
 ```elixir
 Frequency.start_link()
 Frequency.add_word("dave")
 ```
 
-<!-- livebook:{"output":true} -->
-
-```
-:ok
-```
-
 ```elixir
 Frequency.words()
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-["dave"]
 ```
 
 ```elixir
@@ -171,35 +98,18 @@ Frequency.add_word("he")
 Frequency.add_word("dave")
 ```
 
-<!-- livebook:{"output":true} -->
-
-```
-:ok
-```
-
 ```elixir
 Frequency.count_for("dave")
 ```
 
-<!-- livebook:{"output":true} -->
-
-```
-2
-```
-
-## A Bigger Example
+### A Bigger Example
 
 ```elixir
 defmodule Dictionary do
   @name __MODULE__
 
   # External API
-<<<<<<< HEAD
   def start_link, do: Agent.start_link(fn -> %{} end, name: @name)
-=======
-  def start_link,
-    do: Agent.start_link(fn -> %{} end, name: @name)
->>>>>>> 4c8a4758c8b633cd949bdd6094263f0a20cb9f41
 
   def add_words(words),
     do: Agent.update(@name, &do_add_words(&1, words))
@@ -207,7 +117,6 @@ defmodule Dictionary do
   def anagrams_of(word),
     do: Agent.get(@name, &Map.get(&1, signature_of(word)))
 
-<<<<<<< HEAD
   # Internal implementation
   defp do_add_words(map, words) do
     Enum.reduce(words, map, &add_one_word(&1, &2))
@@ -237,32 +146,10 @@ defmodule WordlistLoader do
     |> Enum.map(&String.trim/1)
     |> Dictionary.add_words()
   end
-=======
-  def get, do: Agent.get(@name, & &1)
-
-  # Internal implementation
-  defp do_add_words(map, words),
-    do: Enum.reduce(words, map, &add_one_word(&1, &2))
-
-  # 添加一个单词。*key* 是单词的顺序表示，*value* 是输入的单词。
-  defp add_one_word(word, map),
-    do: Map.update(map, signature_of(word), [word], &[word | &1])
-
-  # 生成一个单词的标签。
-  defp signature_of(word),
-    do: word |> to_charlist |> Enum.sort() |> to_string
->>>>>>> 4c8a4758c8b633cd949bdd6094263f0a20cb9f41
 end
 ```
 
-<!-- livebook:{"output":true} -->
-
-```
-<<<<<<< HEAD
-{:module, WordlistLoader, <<70, 79, 82, 49, 0, 0, 8, ...>>, {:load_task, 1}}
-```
-
-### Run our programms
+#### Run our programms
 
 <!-- livebook:{"break_markdown":true} -->
 
@@ -270,82 +157,64 @@ We have four wordlists under *words/*  :
 
 ```elixir
 proj_dir = "C:\\Users\\chris\\IdeaProjects\\learn-elixir"
-File.ls("#{proj_dir}/words")
+File.ls("#{proj_dir}\\words")
 ```
 
-<!-- livebook:{"output":true} -->
-
-```
-{:ok, ["list1", "list2", "list3", "list4"]}
-```
-
-And now we can run our program:
-=======
-{:module, Dictionary, <<70, 79, 82, 49, 0, 0, 13, ...>>, {:signature_of, 1}}
-```
-
-### 测试
->>>>>>> 4c8a4758c8b633cd949bdd6094263f0a20cb9f41
+Let's run our program:
 
 ```elixir
 Dictionary.start_link()
 ```
 
-<!-- livebook:{"output":true} -->
-
-```
-<<<<<<< HEAD
-{:ok, #PID<0.662.0>}
-```
-
 ```elixir
 1..4
-|> Enum.map(&"#{proj_dir}/words/list#{&1}")
+|> Enum.map(&"#{proj_dir}\\words\\list#{&1}")
 |> WordlistLoader.load_from_files()
-=======
-{:ok, #PID<0.631.0>}
-```
-
-```elixir
-Dictionary.add_words(["Hello", "World", "Sleepy", "cat", "Wodlr"])
->>>>>>> 4c8a4758c8b633cd949bdd6094263f0a20cb9f41
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-<<<<<<< HEAD
-[:ok, :ok, :ok, :ok]
 ```
 
 ```elixir
 Dictionary.anagrams_of("organ")
-=======
-:ok
-```
-
-```elixir
-Dictionary.get()
->>>>>>> 4c8a4758c8b633cd949bdd6094263f0a20cb9f41
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-<<<<<<< HEAD
-["ronga", "rogan", "orang", "nagor", "groan", "grano", "goran", "argon", "angor"]
 ```
 
 ### Making It Distributed
 
-```elixir
+<!-- livebook:{"break_markdown":true} -->
 
-=======
-%{
-  "Hello" => ["Hello", "Hello"],
-  "Seelpy" => ["Sleepy", "Sleepy"],
-  "Wdlor" => ["Wodlr", "World", "World"],
-  "act" => ["cat", "cat"]
-}
->>>>>>> 4c8a4758c8b633cd949bdd6094263f0a20cb9f41
+Start two seperate nodes, and compile our `anagrams.exs` code. Here is the out put of our node one:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+(base) PS C:\Users\chris\IdeaProjects\learn-elixir> iex.bat --sname one --cookie "cookie-20220819190-31161 " .\anagrams.exs
+Interactive Elixir (1.13.4) - press Ctrl+C to exit (type h() ENTER for help)
+iex(one@zeta2)1> Node.connect :two@zeta2
+true
+iex(one@zeta2)2> Node.list
+[:two@zeta2]
+iex(one@zeta2)3> DDictionary.start_link
+{:ok, #PID<0.127.0>}
+iex(one@zeta2)4> DWordlistLoader.load_from_files(~w{words/list1 words/list2})
+[:ok, :ok]
+iex(one@zeta2)5> DDictionary.anagrams_of "argon"
+["ronga", "rogan", "orang", "nagor", "groan", "grano", "goran", "argon",
+ "angor"]
+iex(one@zeta2)6>
+```
+
+And here is another node's output:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+(base) PS C:\Users\chris\IdeaProjects\learn-elixir> iex.bat --sname two --cookie "cookie-20220819190-31161 " .\anagrams.exs
+Interactive Elixir (1.13.4) - press Ctrl+C to exit (type h() ENTER for help)
+iex(two@zeta2)1> Node.list
+[:one@zeta2]
+iex(two@zeta2)2> DDictionary.start_link
+{:error, {:already_started, #PID<16650.127.0>}}
+iex(two@zeta2)3> DWordlistLoader.load_from_files(~w{words/list4 words/list3})
+[:ok, :ok]
+iex(two@zeta2)4> DDictionary.anagrams_of "crate"
+["recta", "react", "creta", "creat", "crate", "cater", "carte", "caret"]
+iex(two@zeta2)5>
 ```
