@@ -8,8 +8,6 @@
 
 ## Implementing an if Statement
 
-
-
 ```elixir
 defmodule My do
   def myif(condition, clause) do
@@ -54,4 +52,110 @@ So we need a way of delaying the execution of these clauses, and this is where m
 
 ## Macros Inject Code
 
+Elixir 中 macro 的本质是操纵字符串——即表示 Elixir 程序的 Tuple。
 
+下面的程序使用宏打印出了各个类型的字符串表示：
+
+```elixir
+defmodule My do
+  defmacro macro(param) do
+    IO.inspect(param)
+  end
+end
+
+defmodule Test do
+  require My
+
+  My.macro(:atom)
+  My.macro(1)
+  My.macro("123")
+  My.macro('123')
+  My.macro([1, 2, 3])
+  My.macro({1, 2, 3})
+  My.macro(do: 1)
+
+  My.macro(
+    if 1 == 1 do
+      true
+    else
+      false
+    end
+  )
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:atom
+1
+"123"
+'123'
+[1, 2, 3]
+{:{}, [line: 15], [1, 2, 3]}
+[do: 1]
+{:if, [line: 17], [{:==, [line: 17], [1, 1]}, [do: true, else: false]]}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Test, <<70, 79, 82, 49, 0, 0, 4, ...>>, true}
+```
+
+### Load Order
+
+<!-- livebook:{"break_markdown":true} -->
+
+> Macros are expanded before a program executes, so the macro defined in one module must be available as Elixir is compiling compiling another module that uses those macros.
+
+如果一个模块使用了宏，那么在编译该模块之前，所有的宏操作必须要全部处理完毕。这也是 `require` 关键字的作用。
+
+如果宏模块和使用宏的模块分别属于两个文件，那么宏模块会先编译。如果宏模块和使用宏的模块处于同一个文件，那么宏模块必须放在使用模块的前方。
+
+<!-- livebook:{"break_markdown":true} -->
+
+### The quote Function
+
+<!-- livebook:{"break_markdown":true} -->
+
+> `quote` takes a block and returns the internal representation of that block.
+
+```elixir
+IO.inspect(quote do: :atom)
+IO.inspect(quote do: 1)
+
+IO.inspect(
+  quote do:
+          (
+            a = 1
+            a + a
+          )
+)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:atom
+1
+{:__block__, [],
+ [
+   {:=, [], [{:a, [], Elixir}, 1]},
+   {:+, [context: Elixir, import: Kernel], [{:a, [], Elixir}, {:a, [], Elixir}]}
+ ]}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:__block__, [],
+ [
+   {:=, [], [{:a, [], Elixir}, 1]},
+   {:+, [context: Elixir, import: Kernel], [{:a, [], Elixir}, {:a, [], Elixir}]}
+ ]}
+```
+
+> "interpret the content of the block that follows as code, and return the internal representation"
+
+## Using the Representation as Code
